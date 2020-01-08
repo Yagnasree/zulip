@@ -768,7 +768,7 @@ function populate_messages_by_topic(data) {
     const layout = {
         width: 750,
         height: null, // set in draw_plot()
-        margin: { l: 3, r: 40, b: 40, t: 0 },
+        margin: { l: 3, r: 40, b: 40, t: 40 },
         font: font_14pt,
         xaxis: { range: null }, // set in draw_plot()
         yaxis: { showticklabels: false },
@@ -779,20 +779,14 @@ function populate_messages_by_topic(data) {
         return {
             trace: {
                 x: value,
-                y: label,
+		y: label,
                 type: 'bar',
                 orientation: 'h',
                 sort: false,
-                textinfo: "text",
-                hoverinfo: "none",
+		mode: "text",
+                textinfo: label,
                 marker: { color: '#537c5e' },
                 font: { family: 'Source Sans Pro', size: 18, color: '#000000' },
-            },
-            trace_annotations: {
-                x: value,
-                y: label,
-                mode: 'text',
-                type: 'scatter',
                 textposition: 'bottom right',
                 text: label,
             },
@@ -803,18 +797,25 @@ function populate_messages_by_topic(data) {
         $('#id_messages_by_topic > div').removeClass("spinner");
 	var topics = data['topics'];
 
-	for(var topic in topics) {
+	//for(var topic in topics) {
+	  Object.keys(topics).forEach(function(topic, ind) {
 		const data_ = make_plot_data([topics[topic]], topic);
-		layout.height = layout.margin.b + data_.trace.x.length * 30;
+		layout.title = topic;
+		//layout.height = layout.margin.b + data_.trace.x.length * 50;
+		layout.height = 120;
 		//layout.xaxis.range = [0, Math.ceil(Math.max.apply(null, data_.trace.x) * 5)];
 		layout.xaxis.range = [0, 100];
 		var topic_id = 'id_messages_by_topic_' + topic.replace(/ /g, '', 'r')
-		$('#id_messages_by_topic').append('<div id='+topic_id+'></div>');
+		var style = 'padding: 10px 0px;';
+		if (ind != Object.keys(topics).length-1) {
+			style += 'border-bottom: 2px solid hsl(0, 0%, 93%);'
+		}
+		$('#id_messages_by_topic').append('<div id='+topic_id+' style="'+style+'"></div>');
 		Plotly.newPlot(topic_id,
-			       [data_.trace, data_.trace_annotations],
+			       [data_.trace],
 			       layout,
-			       {displayModeBar: false, staticPlot: true});
-	}
+			       {displayModeBar: false});
+	});
     }
 
     draw_plot();
