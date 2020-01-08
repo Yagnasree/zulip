@@ -788,7 +788,6 @@ function populate_messages_by_topic(data) {
                 marker: { color: '#537c5e' },
                 font: { family: 'Source Sans Pro', size: 18, color: '#000000' },
                 textposition: 'bottom right',
-                text: label,
             },
         };
     }
