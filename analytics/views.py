@@ -47,7 +47,7 @@ if settings.BILLING_ENABLED:
     from corporate.lib.stripe import attach_discount_to_realm, get_discount_for_realm
 
 from zerver.models import Client, get_realm, Realm, UserActivity, UserActivityInterval, \
-    UserProfile, PreregistrationUser, MultiuseInvite
+    UserProfile, PreregistrationUser, MultiuseInvite, Recipient, Message, UserGroupMembership, Stream
 
 if settings.ZILENCER_ENABLED:
     from zilencer.models import RemoteInstallationCount, RemoteRealmCount, \
@@ -204,6 +204,9 @@ def get_chart_data(request: HttpRequest, user_profile: UserProfile, chart_name: 
                              {str(id): name for id, name in Client.objects.values_list('id', 'name')}}
         labels_sort_function = sort_client_labels
         include_empty_subgroups = False
+    elif chart_name == 'messages_by_topic':
+        data = get_messages_by_topic()
+        return json_success(data=data)
     else:
         raise JsonableError(_("Unknown chart name: %s") % (chart_name,))
 
@@ -1482,3 +1485,39 @@ def get_user_activity(request: HttpRequest, email: str) -> HttpResponse:
         'analytics/activity.html',
         context=dict(data=data, title=title),
     )
+
+### Get count of messages by topic
+def get_messages_by_topic():
+    data = {'msg': "",
+            'topics': {},
+            'result': "success"}
+
+    #Get Recipients where stream-id=8(My Activities) and type=2(Topics)
+    stream_id = Stream.objects.filter(name='My Activities')
+    #recipient_id = Recipient.objects.filter(type_id=16, type=2).values_list('id', flat=True)
+
+    if not stream_id:
+        return data
+
+    #Get activity-admin group users and exclude the messages from these users
+    activity_amdins = UserGroupMembership.objects.filter(user_group__name='activity-admin')\
+                                                .values_list('user_profile', flat=True)
+
+
+    #Exclude messages from Notificaton-Bot
+    default_user_id = UserProfile.objects.filter(full_name='Notification Bot')[0].id
+
+    #Get distinct Topic Names
+    stream_id = stream_id[0].id
+    topics = Message.objects.filter(recipient__type_id=stream_id, recipient__type=2)\
+                            .exclude(sender_id=activity_amdins)\
+                            .exclude(sender_id=default_user_id)\
+                            .values_list('subject', flat=True).distinct()
+
+    #Get Count of Messsages for each Topic
+    for topic in topics:
+        msg_count = Message.objects.filter(subject=topic).exclude(sender_id=activity_amdins)\
+                            .exclude(sender_id=default_user_id).count()
+        data['topics'][topic] = msg_count
+
+    return data

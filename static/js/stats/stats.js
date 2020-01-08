@@ -733,7 +733,9 @@ function get_chart_data(data, callback) {
         idempotent: true,
         success: function (data) {
             callback(data);
-            update_last_full_update(data.end_times);
+	    if(data.hasOwnProperty('end_times')) {
+		    update_last_full_update(data.end_times);
+	    }
         },
         error: function (xhr) {
             $('#id_stats_errors').show().text(JSON.parse(xhr.responseText).msg);
@@ -759,4 +761,81 @@ get_chart_data(
 get_chart_data(
     {chart_name: 'number_of_humans', min_length: '10'},
     populate_number_of_users
+);
+
+
+function populate_messages_by_topic(data) {
+    const layout = {
+        width: 750,
+        height: null, // set in draw_plot()
+        margin: { l: 3, r: 40, b: 40, t: 0 },
+        font: font_14pt,
+        xaxis: { range: null }, // set in draw_plot()
+        yaxis: { showticklabels: false },
+        showlegend: false,
+    };
+
+    function make_plot_data(value, label) {
+        return {
+            trace: {
+                x: value,
+                y: label,
+                type: 'bar',
+                orientation: 'h',
+                sort: false,
+                textinfo: "text",
+                hoverinfo: "none",
+                marker: { color: '#537c5e' },
+                font: { family: 'Source Sans Pro', size: 18, color: '#000000' },
+            },
+            trace_annotations: {
+                x: value,
+                y: label,
+                mode: 'text',
+                type: 'scatter',
+                textposition: 'bottom right',
+                text: label,
+            },
+        };
+    }
+
+    function draw_plot() {
+        $('#id_messages_by_topic > div').removeClass("spinner");
+	var topics = data['topics'];
+
+	for(var topic in topics) {
+		const data_ = make_plot_data([topics[topic]], topic);
+		layout.height = layout.margin.b + data_.trace.x.length * 30;
+		//layout.xaxis.range = [0, Math.ceil(Math.max.apply(null, data_.trace.x) * 5)];
+		layout.xaxis.range = [0, 100];
+		var topic_id = 'id_messages_by_topic_' + topic.replace(/ /g, '', 'r')
+		$('#id_messages_by_topic').append('<div id='+topic_id+'></div>');
+		Plotly.newPlot(topic_id,
+			       [data_.trace, data_.trace_annotations],
+			       layout,
+			       {displayModeBar: false, staticPlot: true});
+	}
+    }
+
+    draw_plot();
+
+    // handle links with @href started with '#' only
+    $(document).on('click', 'a[href^="#"]', function (e) {
+        // target element id
+        const id = $(this).attr('href');
+        // target element
+        const $id = $(id);
+        if ($id.length === 0) {
+            return;
+        }
+        // prevent standard hash navigation (avoid blinking in IE)
+        e.preventDefault();
+        const pos = $id.offset().top + $('.page-content')[0].scrollTop - 50;
+        $('.page-content').animate({scrollTop: pos + "px"}, 500);
+    });
+}
+
+get_chart_data(
+    {chart_name: 'messages_by_topic', min_length: '10'},
+    populate_messages_by_topic
 );
